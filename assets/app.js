@@ -51,7 +51,20 @@
   };
   const state = Object.assign({}, defaults, load());
   state.purity = Object.assign({}, defaults.purity, state.purity);
+  // Sanitise anything read back from storage (older versions, manual edits, corruption).
   if (!CUR[state.cur]) state.cur = 'USD';
+  if (!['gold', 'silver', 'ratio', 'compare'].includes(state.view)) state.view = 'gold';
+  if (![7, 30, 90, 180, 365, 0].includes(state.range)) state.range = 90;
+  for (const m of ['gold', 'silver']) if (!PURITY[m].some((p) => p.id === state.purity[m])) state.purity[m] = PURITY[m][0].id;
+  state.holdings = (Array.isArray(state.holdings) ? state.holdings : [])
+    .filter((x) => x && METAL[x.metal])
+    .map((x) => ({
+      id: typeof x.id === 'string' ? x.id : uid(),
+      metal: x.metal,
+      purity: PURITY[x.metal].some((p) => p.id === x.purity) ? x.purity : PURITY[x.metal][0].id,
+      qty: Number.isFinite(+x.qty) && +x.qty >= 0 ? +x.qty : 0,
+      unit: UNITS.some((u) => u.id === x.unit) ? x.unit : 'g',
+    }));
 
   function load() { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return {}; } }
   function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { /* private mode */ } }
@@ -97,6 +110,7 @@
   const $ = (s, r = document) => r.querySelector(s);
   function h(tag, attrs = {}, ...kids) {
     const el = document.createElement(tag);
+    if (tag === 'button') el.type = 'button';
     for (const [k, v] of Object.entries(attrs)) {
       if (v == null || v === false) continue;
       if (k === 'class') el.className = v;

@@ -45,6 +45,18 @@ node scripts/update-prices.mjs
 node scripts/update-prices.mjs --backfill 400
 ```
 
+## Testing
+
+There are three suites:
+
+| Suite | Command | What it covers |
+|---|---|---|
+| Data pipeline (39 tests) | `npm test` | Price conversion, plausibility bands, tarball extraction, spike filtering, gap filling, mirror fallback, total outage (file left untouched), corrupt-history protection, idempotency, integrity of the committed data |
+| Browser features (14 tests) | `npm test`, when Playwright is installed | Every figure on screen compared with an independent calculation: hero cards, the rate sheet across products and currencies, chart stats for every view and range, tooltip and keyboard, table view, holdings calculator, saved settings, theme, error and stale-data states |
+| Devices and accessibility (85 checks) | `npm install`, then `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1 npm run test:devices` | Widths from 320 to 1920 px in both themes, axe-core accessibility audit, keyboard reachability and focus rings, animations, live resizing, time zones and browser languages, high-contrast mode, offline mode and update delivery, page weight |
+
+The daily workflow runs `npm test` before it commits or deploys, so bad price data never goes live. The browser suite skips itself in CI because Playwright isn't installed there.
+
 ## Deploy (one-time setup)
 
 1. Merge this branch into `main`. GitHub only runs scheduled workflows on the default branch.

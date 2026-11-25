@@ -42,12 +42,12 @@
 
       <div class="topbar__actions">
         <div class="seg" role="radiogroup" aria-label="Display currency" id="currencySeg">
-          <button role="radio" data-cur="USD">USD</button>
-          <button role="radio" data-cur="CAD">CAD</button>
-          <button role="radio" data-cur="INR">INR</button>
+          <button type="button" role="radio" data-cur="USD">USD</button>
+          <button type="button" role="radio" data-cur="CAD">CAD</button>
+          <button type="button" role="radio" data-cur="INR">INR</button>
           <span class="seg__thumb" aria-hidden="true"></span>
         </div>
-        <button class="iconbtn" id="themeBtn" aria-label="Toggle light or dark theme" title="Toggle theme">
+        <button type="button" class="iconbtn" id="themeBtn" aria-label="Toggle light or dark theme" title="Toggle theme">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-sun" d="M12 4V2m0 20v-2m8-8h2M2 12h2m13.66-5.66 1.41-1.41M4.93 19.07l1.41-1.41m0-11.32L4.93 4.93m14.14 14.14-1.41-1.41M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"/><path class="i-moon" d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z"/></svg>
         </button>
       </div>
@@ -77,7 +77,7 @@
         </div>
         <div class="fx" id="fxStrip"></div>
       </div>
-      <div class="table-scroll">
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Rate sheet table, scrollable">
         <table class="rates" id="ratesTable"></table>
       </div>
     </section>
@@ -91,18 +91,18 @@
         </div>
         <div class="controls">
           <div class="tabs" role="tablist" aria-label="Chart series" id="metalTabs">
-            <button role="tab" data-view="gold">Gold</button>
-            <button role="tab" data-view="silver">Silver</button>
-            <button role="tab" data-view="ratio">Gold/Silver ratio</button>
-            <button role="tab" data-view="compare">Compare</button>
+            <button type="button" role="tab" data-view="gold">Gold</button>
+            <button type="button" role="tab" data-view="silver">Silver</button>
+            <button type="button" role="tab" data-view="ratio">Gold/Silver ratio</button>
+            <button type="button" role="tab" data-view="compare">Compare</button>
           </div>
           <div class="chips" role="radiogroup" aria-label="Time range" id="rangeChips">
-            <button role="radio" data-range="7">1W</button>
-            <button role="radio" data-range="30">1M</button>
-            <button role="radio" data-range="90">3M</button>
-            <button role="radio" data-range="180">6M</button>
-            <button role="radio" data-range="365">1Y</button>
-            <button role="radio" data-range="0">All</button>
+            <button type="button" role="radio" data-range="7">1W</button>
+            <button type="button" role="radio" data-range="30">1M</button>
+            <button type="button" role="radio" data-range="90">3M</button>
+            <button type="button" role="radio" data-range="180">6M</button>
+            <button type="button" role="radio" data-range="365">1Y</button>
+            <button type="button" role="radio" data-range="0">All</button>
           </div>
         </div>
       </div>
@@ -115,10 +115,10 @@
         <div class="tooltip" id="tooltip" role="status" aria-live="off" hidden></div>
       </div>
       <div class="chart__foot">
-        <button class="linkbtn" id="tableToggle" aria-expanded="false" aria-controls="historyTable">View as table</button>
+        <button type="button" class="linkbtn" id="tableToggle" aria-expanded="false" aria-controls="historyTable">View as table</button>
         <span class="muted small">Use ← → on the chart to step through days.</span>
       </div>
-      <div class="table-scroll" id="historyWrap" hidden>
+      <div class="table-scroll" id="historyWrap" tabindex="0" role="region" aria-label="Price history table, scrollable" hidden>
         <table class="history" id="historyTable"></table>
       </div>
     </section>
@@ -140,7 +140,7 @@
         </div>
         <div class="portfolio" id="portfolioTotal"></div>
         <div class="holdings" id="holdings"></div>
-        <button class="btn btn--ghost" id="addHolding">
+        <button type="button" class="btn btn--ghost" id="addHolding">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
           Add holding
         </button>

@@ -1,0 +1,14 @@
+{
+  "name": "aurum",
+  "private": true,
+  "description": "Daily gold & silver price tracker (USD / CAD / INR)",
+  "scripts": {
+    "update-prices": "node scripts/update-prices.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:devices": "node tests/devices.check.cjs"
+  },
+  "devDependencies": {
+    "axe-core": "4.10.2"
+  },
+  "engines": { "node": ">=20" }
+}

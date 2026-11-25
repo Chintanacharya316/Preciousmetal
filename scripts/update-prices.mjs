@@ -24,7 +24,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { gunzipSync } from 'node:zlib';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DATA_FILE = resolve(ROOT, 'data/prices.json');
@@ -42,9 +42,9 @@ const BOUNDS = {
 const MAX_DAILY_MOVE = 0.25; // reject >25% jumps vs. the previous stored day
 
 // ---------- helpers ----------
-const iso = (d) => d.toISOString().slice(0, 10);
-const addDays = (s, n) => { const d = new Date(s + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return iso(d); };
-const npmVersion = (s) => s.split('-').map(Number).join('.'); // 2026-01-05 -> 2026.1.5
+export const iso = (d) => d.toISOString().slice(0, 10);
+export const addDays = (s, n) => { const d = new Date(s + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return iso(d); };
+export const npmVersion = (s) => s.split('-').map(Number).join('.'); // 2026-01-05 -> 2026.1.5
 const round = (v, dp) => Math.round(v * 10 ** dp) / 10 ** dp;
 const log = (...a) => console.log('[aurum]', ...a);
 
@@ -59,7 +59,7 @@ async function fetchWithTimeout(url, { timeout = 20000, as = 'json' } = {}) {
 }
 
 /** Minimal ustar reader: return the contents of one file inside a .tgz buffer. */
-function extractFromTgz(tgz, wanted) {
+export function extractFromTgz(tgz, wanted) {
   const tar = gunzipSync(tgz);
   let off = 0;
   while (off + 512 <= tar.length) {
@@ -77,7 +77,7 @@ function extractFromTgz(tgz, wanted) {
 }
 
 /** Fetch the USD snapshot for a date ('latest' allowed) from the first mirror that answers. */
-async function fetchSnapshot(date) {
+export async function fetchSnapshot(date) {
   const tag = date === 'latest' ? 'latest' : date;
   const mirrors = [
     () => fetchWithTimeout(`https://cdn.jsdelivr.net/npm/${PKG}@${tag}/v1/currencies/usd.min.json`),
@@ -101,7 +101,7 @@ async function fetchSnapshot(date) {
   throw new Error(`all mirrors failed for ${date}: ${errors.join(' | ')}`);
 }
 
-function toRow(snap) {
+export function toRow(snap) {
   const r = snap.usd;
   const row = {
     d: snap.date,
@@ -124,71 +124,98 @@ async function pool(items, n, fn) {
   return out;
 }
 
-async function load() {
-  try { return JSON.parse(await readFile(DATA_FILE, 'utf8')); }
-  catch { return { series: [] }; }
+/** Missing file → start fresh. Unreadable/corrupt file → refuse, so history is never overwritten. */
+async function load(file) {
+  let text;
+  try { text = await readFile(file, 'utf8'); }
+  catch (e) { if (e.code === 'ENOENT') return { series: [] }; throw e; }
+  const json = JSON.parse(text);
+  if (!Array.isArray(json.series)) throw new Error(`${file}: missing "series" array`);
+  return json;
 }
 
-function validateMoves(series) {
+/**
+ * Drop bad prints without ever freezing the feed.
+ * A day that jumps more than MAX_DAILY_MOVE versus the last accepted day is kept only if the
+ * following day confirms the new level (a genuine re-pricing). An isolated spike that reverts —
+ * or a newest day whose jump is not yet confirmed — is dropped; the next run refetches it.
+ */
+export function validateMoves(series, limit = MAX_DAILY_MOVE, onDrop = () => {}) {
+  const KEYS = ['xau', 'xag', 'cad', 'inr'];
+  const maxMove = (a, b) => Math.max(...KEYS.map((k) => Math.abs(b[k] / a[k] - 1)));
   const clean = [];
-  for (const row of series) {
+  series.forEach((row, i) => {
     const prev = clean[clean.length - 1];
-    if (prev) {
-      const bad = ['xau', 'xag', 'cad', 'inr'].find((k) => Math.abs(row[k] / prev[k] - 1) > MAX_DAILY_MOVE);
-      if (bad) { log(`dropping ${row.d}: ${bad} moved >${MAX_DAILY_MOVE * 100}% vs ${prev.d}`); continue; }
-    }
-    clean.push(row);
-  }
+    if (!prev || maxMove(prev, row) <= limit) { clean.push(row); return; }
+    const next = series[i + 1];
+    if (next && maxMove(row, next) <= limit) { clean.push(row); return; }
+    onDrop(row, prev);
+  });
   return clean;
 }
 
-// ---------- main ----------
-const args = process.argv.slice(2);
-const argVal = (flag) => { const i = args.indexOf(flag); return i >= 0 ? args[i + 1] : undefined; };
-
-const db = await load();
-const byDate = new Map(db.series.map((r) => [r.d, r]));
-const today = iso(new Date());
-let dates = [];
-
-if (argVal('--backfill')) {
-  const n = parseInt(argVal('--backfill'), 10);
-  for (let i = n; i >= 1; i--) dates.push(addDays(today, -i));
-  dates.push('latest');
-} else if (argVal('--date')) {
-  dates = [argVal('--date')];
-} else {
-  const last = db.series.at(-1)?.d;
-  const floor = addDays(today, -MAX_GAP_FILL);
+/** Which dates to fetch for a run. */
+export function planDates({ series = [], today, backfill, date, maxGap = MAX_GAP_FILL }) {
+  if (backfill) {
+    const out = [];
+    for (let i = backfill; i >= 1; i--) out.push(addDays(today, -i));
+    return [...out, 'latest'];
+  }
+  if (date) return [date];
+  const out = [];
+  const last = series.at(-1)?.d;
+  const floor = addDays(today, -maxGap);
   const from = last && addDays(last, 1) > floor ? addDays(last, 1) : floor;
-  for (let d = from; d < today; d = addDays(d, 1)) dates.push(d);
-  dates.push('latest');
+  for (let d = from; d < today; d = addDays(d, 1)) out.push(d);
+  return [...out, 'latest'];
 }
 
-log(`fetching ${dates.length} snapshot(s)…`);
-let ok = 0, failed = 0;
-const results = await pool(dates, CONCURRENCY, async (d) => toRow(await fetchSnapshot(d)));
-results.forEach((r, i) => {
-  if (r?.error) { failed++; log(`skip ${dates[i]}: ${r.error}`); return; }
-  byDate.set(r.d, r); ok++;
-});
+export function mergeSeries(existing, rows, onDrop) {
+  const byDate = new Map(existing.map((r) => [r.d, r]));
+  rows.forEach((r) => byDate.set(r.d, r));
+  return validateMoves([...byDate.values()].sort((a, b) => a.d.localeCompare(b.d)), MAX_DAILY_MOVE, onDrop);
+}
 
-const series = validateMoves([...byDate.values()].sort((a, b) => a.d.localeCompare(b.d)));
-if (!series.length) { console.error('[aurum] no data — aborting without writing'); process.exit(1); }
+export function serialize(series, now = new Date()) {
+  const out = {
+    meta: {
+      name: 'Aurum price history',
+      source: 'fawazahmed0/exchange-api (daily snapshot, mirrors: jsDelivr · Cloudflare Pages · npm)',
+      units: { xau: 'USD per troy ounce', xag: 'USD per troy ounce', cad: 'CAD per USD', inr: 'INR per USD' },
+      updatedAt: now.toISOString(),
+      latest: series.at(-1).d,
+      points: series.length,
+    },
+    series,
+  };
+  return JSON.stringify(out).replace(/\},\{/g, '},\n{') + '\n';
+}
 
-const out = {
-  meta: {
-    name: 'Aurum price history',
-    source: 'fawazahmed0/exchange-api (daily snapshot, mirrors: jsDelivr · Cloudflare Pages · npm)',
-    units: { xau: 'USD per troy ounce', xag: 'USD per troy ounce', cad: 'CAD per USD', inr: 'INR per USD' },
-    updatedAt: new Date().toISOString(),
-    latest: series.at(-1).d,
-    points: series.length,
-  },
-  series,
-};
+// ---------- main ----------
+export async function main(argv = process.argv.slice(2), { dataFile = DATA_FILE, now = new Date() } = {}) {
+  const argVal = (flag) => { const i = argv.indexOf(flag); return i >= 0 ? argv[i + 1] : undefined; };
+  const db = await load(dataFile);
+  const dates = planDates({ series: db.series, today: iso(now), backfill: argVal('--backfill') && parseInt(argVal('--backfill'), 10), date: argVal('--date') });
 
-await mkdir(dirname(DATA_FILE), { recursive: true });
-await writeFile(DATA_FILE, JSON.stringify(out, null, 0).replace(/\},\{/g, '},\n{') + '\n');
-log(`stored ${ok} new/updated, ${failed} skipped → ${series.length} days (latest ${out.meta.latest})`);
-if (ok === 0) process.exit(2); // let CI flag a day where every mirror failed
+  log(`fetching ${dates.length} snapshot(s)…`);
+  const rows = [];
+  let failed = 0;
+  const results = await pool(dates, CONCURRENCY, async (d) => toRow(await fetchSnapshot(d)));
+  results.forEach((r, i) => { if (r?.error) { failed++; log(`skip ${dates[i]}: ${r.error}`); } else rows.push(r); });
+
+  if (!rows.length) {
+    console.error('[aurum] every snapshot failed — leaving data file untouched');
+    return 2;
+  }
+  const series = mergeSeries(db.series, rows, (row, prev) => log(`dropping ${row.d}: unconfirmed move >${MAX_DAILY_MOVE * 100}% vs ${prev.d}`));
+  if (!series.length) { console.error('[aurum] no valid data — aborting without writing'); return 1; }
+
+  await mkdir(dirname(dataFile), { recursive: true });
+  await writeFile(dataFile, serialize(series, now));
+  log(`fetched ${rows.length}, skipped ${failed} → ${series.length} days stored (latest ${series.at(-1).d})`);
+  return 0;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  main().then((code) => { process.exitCode = code; }, (e) => { console.error(e); process.exitCode = 1; });
+}
