@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Aurum — Gold &amp; Silver Prices</title>
+  <meta name="description" content="Daily gold and silver prices in USD, CAD and INR — 24K/22K/18K gold per 10 g, silver per kg, with history, ratio insights and a holdings calculator." />
+  <meta name="theme-color" content="#0E0D0B" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#F6F2EA" media="(prefers-color-scheme: light)" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/styles.css" />
+  <script>
+    // Apply saved theme before first paint (no flash).
+    try { const t = localStorage.getItem('aurum.theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="wrap topbar__inner">
+      <a class="brand" href="./" aria-label="Aurum home">
+        <svg class="brand__mark" viewBox="0 0 40 40" aria-hidden="true">
+          <defs>
+            <linearGradient id="bm" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#F6DFA4" /><stop offset=".5" stop-color="#D2A24A" /><stop offset="1" stop-color="#8E6620" />
+            </linearGradient>
+          </defs>
+          <path d="M20 2.5 35.2 11.25v17.5L20 37.5 4.8 28.75v-17.5Z" fill="none" stroke="url(#bm)" stroke-width="1.6" />
+          <path d="M12.6 27.5 20 11l7.4 16.5M15.4 21.6h9.2" fill="none" stroke="url(#bm)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="brand__name">Aurum</span>
+        <span class="brand__tag">Precious Metals Desk</span>
+      </a>
+
+      <div class="topbar__actions">
+        <div class="seg" role="radiogroup" aria-label="Display currency" id="currencySeg">
+          <button role="radio" data-cur="USD">USD</button>
+          <button role="radio" data-cur="CAD">CAD</button>
+          <button role="radio" data-cur="INR">INR</button>
+          <span class="seg__thumb" aria-hidden="true"></span>
+        </div>
+        <button class="iconbtn" id="themeBtn" aria-label="Toggle light or dark theme" title="Toggle theme">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-sun" d="M12 4V2m0 20v-2m8-8h2M2 12h2m13.66-5.66 1.41-1.41M4.93 19.07l1.41-1.41m0-11.32L4.93 4.93m14.14 14.14-1.41-1.41M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"/><path class="i-moon" d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap" id="app" aria-busy="true">
+    <!-- Intro -->
+    <section class="intro reveal">
+      <p class="eyebrow"><span class="live-dot" aria-hidden="true"></span><span id="asOf">Loading today’s fix…</span></p>
+      <h1 class="display">The price of <em>gold</em> &amp; <em>silver</em>,<br class="br-lg" /> distilled daily.</h1>
+      <p class="lede">Spot-derived rates for fine gold per 10&nbsp;g and fine silver per kilogram — in US, Canadian and Indian currency — refreshed every day from an open market feed.</p>
+    </section>
+
+    <!-- Hero metal cards -->
+    <section class="metals" aria-label="Today’s headline prices">
+      <article class="metal metal--gold reveal" id="cardGold" aria-live="polite"></article>
+      <article class="metal metal--silver reveal" id="cardSilver" aria-live="polite"></article>
+    </section>
+
+    <!-- Rates matrix -->
+    <section class="panel reveal" aria-labelledby="ratesTitle">
+      <div class="panel__head">
+        <div>
+          <h2 id="ratesTitle" class="h2">Rate sheet</h2>
+          <p class="muted">Every purity and unit, side by side in all three currencies.</p>
+        </div>
+        <div class="fx" id="fxStrip"></div>
+      </div>
+      <div class="table-scroll">
+        <table class="rates" id="ratesTable"></table>
+      </div>
+    </section>
+
+    <!-- Chart -->
+    <section class="panel reveal" aria-labelledby="chartTitle">
+      <div class="panel__head panel__head--wrap">
+        <div>
+          <h2 id="chartTitle" class="h2">Price history</h2>
+          <p class="muted" id="chartSub">Daily closes.</p>
+        </div>
+        <div class="controls">
+          <div class="tabs" role="tablist" aria-label="Chart series" id="metalTabs">
+            <button role="tab" data-view="gold">Gold</button>
+            <button role="tab" data-view="silver">Silver</button>
+            <button role="tab" data-view="ratio">Gold/Silver ratio</button>
+            <button role="tab" data-view="compare">Compare</button>
+          </div>
+          <div class="chips" role="radiogroup" aria-label="Time range" id="rangeChips">
+            <button role="radio" data-range="7">1W</button>
+            <button role="radio" data-range="30">1M</button>
+            <button role="radio" data-range="90">3M</button>
+            <button role="radio" data-range="180">6M</button>
+            <button role="radio" data-range="365">1Y</button>
+            <button role="radio" data-range="0">All</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats" id="rangeStats"></div>
+
+      <div class="chart" id="chart">
+        <div class="chart__legend" id="chartLegend"></div>
+        <div class="chart__plot" id="chartPlot"></div>
+        <div class="tooltip" id="tooltip" role="status" aria-live="off" hidden></div>
+      </div>
+      <div class="chart__foot">
+        <button class="linkbtn" id="tableToggle" aria-expanded="false" aria-controls="historyTable">View as table</button>
+        <span class="muted small">Use ← → on the chart to step through days.</span>
+      </div>
+      <div class="table-scroll" id="historyWrap" hidden>
+        <table class="history" id="historyTable"></table>
+      </div>
+    </section>
+
+    <!-- Insights + Calculator -->
+    <section class="split">
+      <div class="panel reveal" aria-labelledby="insightTitle">
+        <h2 id="insightTitle" class="h2">Market insight</h2>
+        <p class="muted">Where today sits against the last twelve months.</p>
+        <div id="insights" class="insights"></div>
+      </div>
+
+      <div class="panel reveal" aria-labelledby="calcTitle">
+        <div class="panel__head">
+          <div>
+            <h2 id="calcTitle" class="h2">Your holdings</h2>
+            <p class="muted">Value what you own at today’s rate. Saved privately on this device.</p>
+          </div>
+        </div>
+        <div class="portfolio" id="portfolioTotal"></div>
+        <div class="holdings" id="holdings"></div>
+        <button class="btn btn--ghost" id="addHolding">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          Add holding
+        </button>
+      </div>
+    </section>
+
+    <!-- Error banner -->
+    <div class="banner" id="banner" role="alert" hidden></div>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <div>
+        <p class="footer__brand">Aurum</p>
+        <p class="muted small" id="sourceNote">Prices are derived from the international spot fix (USD per troy ounce) and daily FX reference rates, refreshed once a day.</p>
+      </div>
+      <p class="muted small footer__disclaimer">Indicative spot-equivalent values for information only — not an offer to buy or sell. Retail and jeweller prices include taxes (e.g. GST, import duty), premiums and making charges and will differ. 24K = 999, 22K = 916, 18K = 750 fineness.</p>
+    </div>
+  </footer>
+
+  <script src="assets/app.js" defer></script>
+</body>
+</html>
