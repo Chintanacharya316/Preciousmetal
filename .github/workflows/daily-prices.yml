@@ -2,7 +2,9 @@ name: Daily prices & deploy
 
 on:
   schedule:
-    - cron: "17 2 * * *"   # every day at 02:17 UTC, after the daily FX/metals snapshot is published
+    # The source publishes each day's snapshot ~06:00–09:30 UTC.
+    - cron: "47 10 * * *"   # main daily refresh  (16:17 IST · 05:47 Toronto)
+    - cron: "47 16 * * *"   # safety net for a late publish; a no-op when nothing changed
   workflow_dispatch:        # "Run workflow" button for a manual refresh
   push:
     branches: [main]
