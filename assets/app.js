@@ -702,12 +702,58 @@
     updatePortfolio();
   }
 
+  // ------------------------------------------------------------------
+  // Refresh schedule — must match the cron entries in .github/workflows/daily-prices.yml
+  // (tests/schedule.test.mjs enforces this).
+  // ------------------------------------------------------------------
+  const REFRESH_SLOTS_UTC = ['10:47', '13:47', '16:47'];
+
+  /** Next run expected to bring new prices: today's next slot, or tomorrow's first once today's prices are in. */
+  function nextRefresh(now, latestDay) {
+    const today = now.toISOString().slice(0, 10);
+    const slots = (day) => REFRESH_SLOTS_UTC.map((t) => new Date(`${day}T${t}:00Z`));
+    const tomorrowFirst = slots(shiftDate(today, 1))[0];
+    if (latestDay >= today) return tomorrowFirst;
+    return slots(today).find((d) => d > now) || tomorrowFirst;
+  }
+
+  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+  function relative(date, now) {
+    const mins = Math.round((date - now) / 6e4);
+    if (Math.abs(mins) < 1) return 'just now';
+    if (Math.abs(mins) < 60) return rtf.format(mins, 'minute');
+    const hrs = Math.round(mins / 60);
+    if (Math.abs(hrs) < 36) return rtf.format(hrs, 'hour');
+    return rtf.format(Math.round(hrs / 24), 'day');
+  }
+  const fmtStamp = (d) => d.toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true, timeZoneName: 'short' });
+
+  let refreshTimer;
+  function renderRefresh(meta) {
+    const draw = () => {
+      const now = new Date();
+      const last = meta?.updatedAt ? new Date(meta.updatedAt) : null;
+      const lastEl = $('#lastRefresh'), nextEl = $('#nextRefresh');
+      if (last && !Number.isNaN(+last)) {
+        lastEl.replaceChildren(fmtStamp(last), h('span', { class: 'rel', text: `(${relative(last, now)})` }));
+        lastEl.title = last.toISOString();
+      } else lastEl.textContent = fmtDate(LAST.d);
+      const next = nextRefresh(now, LAST.d);
+      nextEl.replaceChildren(fmtStamp(next), h('span', { class: 'rel', text: `(${relative(next, now)})` }));
+      nextEl.title = `${next.toISOString()} — scheduled; GitHub may start runs a little late`;
+    };
+    draw();
+    clearInterval(refreshTimer);
+    refreshTimer = setInterval(draw, 60e3);
+  }
+
   function setAsOf(meta) {
+    renderRefresh(meta);
     const ageDays = Math.round((Date.now() - dParse(LAST.d).getTime()) / 864e5);
     const stale = ageDays > 2;
     $('#asOf').textContent = `${stale ? 'Last fix' : 'Daily fix'} · ${fmtDate(LAST.d, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}`;
     if (stale) { $('.live-dot').style.background = 'var(--down)'; $('.live-dot').style.animation = 'none'; }
-    $('#sourceNote').textContent = `Prices derive from the international spot price (USD per troy ounce) and daily FX reference rates, refreshed once a day. ${meta?.points ? `${meta.points.toLocaleString()} daily records since ${fmtDate(DATA[0].d)}.` : ''} Last updated ${meta?.updatedAt ? new Date(meta.updatedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : fmtDate(LAST.d)}.`;
+    $('#sourceNote').textContent = `Prices derive from the international spot price (USD per troy ounce) and daily FX reference rates, refreshed every day (scheduled ${REFRESH_SLOTS_UTC[0]} UTC, with retries at ${REFRESH_SLOTS_UTC.slice(1).join(' and ')} UTC). ${meta?.points ? `${meta.points.toLocaleString()} daily records since ${fmtDate(DATA[0].d)}.` : ''} Last updated ${meta?.updatedAt ? new Date(meta.updatedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : fmtDate(LAST.d)}.`;
   }
 
   async function getData() {

@@ -209,6 +209,12 @@ export async function main(argv = process.argv.slice(2), { dataFile = DATA_FILE,
   }
   const series = mergeSeries(db.series, rows, (row, prev) => log(`dropping ${row.d}: unconfirmed move >${MAX_DAILY_MOVE * 100}% vs ${prev.d}`));
   if (!series.length) { console.error('[aurum] no valid data — aborting without writing'); return 1; }
+  // Nothing new (e.g. the backup run after a successful one): leave the file — and meta.updatedAt,
+  // which the page shows as "Last refresh" — untouched, so there is no empty commit.
+  if (JSON.stringify(series) === JSON.stringify(db.series)) {
+    log(`no new or changed prices (latest still ${series.at(-1).d}) — data file left untouched`);
+    return 0;
+  }
 
   await mkdir(dirname(dataFile), { recursive: true });
   await writeFile(dataFile, serialize(series, now));

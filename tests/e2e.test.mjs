@@ -41,11 +41,12 @@ async function serve(ctx, overrides = {}) {
 }
 
 let browser;
-async function open({ overrides, viewport = { width: 1366, height: 900 }, scheme = 'dark', storage } = {}) {
-  const ctx = await browser.newContext({ viewport, colorScheme: scheme, reducedMotion: 'reduce', serviceWorkers: 'block' });
+async function open({ overrides, viewport = { width: 1366, height: 900 }, scheme = 'dark', storage, now, timezoneId } = {}) {
+  const ctx = await browser.newContext({ viewport, colorScheme: scheme, reducedMotion: 'reduce', serviceWorkers: 'block', timezoneId });
   await serve(ctx, overrides);
   if (storage) await ctx.addInitScript((st) => { for (const [k, v] of Object.entries(st)) localStorage.setItem(k, v); }, storage);
   const page = await ctx.newPage();
+  if (now) await page.clock.setFixedTime(new Date(now));
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   // Ignore the browser's own network logs (blocked web fonts, deliberately failed fetches in tests).
@@ -282,6 +283,35 @@ describe('Aurum UI', { skip: SKIP }, () => {
         }
       }
     }
+    await ctx.close();
+  });
+
+  test('last / next refresh timestamps follow the schedule', async () => {
+    const dayAfter = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+    const label = (d) => new Date(d + 'T12:00:00Z').toLocaleDateString('en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' });
+    const cases = [
+      // [clock (UTC), expected next refresh day, expected time]
+      [`${L.d}T23:30:00Z`, dayAfter(L.d, 1), '10:47 am'],           // today's prices already in → tomorrow's first run
+      [`${dayAfter(L.d, 1)}T08:00:00Z`, dayAfter(L.d, 1), '10:47 am'], // new day, before the first run
+      [`${dayAfter(L.d, 1)}T11:00:00Z`, dayAfter(L.d, 1), '1:47 pm'],  // first run missed → retry 1
+      [`${dayAfter(L.d, 1)}T14:30:00Z`, dayAfter(L.d, 1), '4:47 pm'],  // → retry 2
+      [`${dayAfter(L.d, 1)}T17:00:00Z`, dayAfter(L.d, 2), '10:47 am'], // all slots passed → tomorrow
+    ];
+    for (const [now, day, time] of cases) {
+      const { ctx, page, errors } = await open({ now, timezoneId: 'UTC' });
+      const next = await page.locator('#nextRefresh').innerText();
+      assert.ok(next.includes(label(day)) && next.includes(time) && next.includes('UTC'), `at ${now}: got "${next}", want ${label(day)} ${time}`);
+      assert.match(next, /\(in \d+ (minutes?|hours?)\)|\(tomorrow\)/, 'relative time');
+      const last = await page.locator('#lastRefresh').innerText();
+      const up = new Date(DATA.meta.updatedAt);
+      assert.ok(last.includes(up.toLocaleDateString('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' })), `last refresh "${last}"`);
+      assert.match(last, /ago|just now|yesterday/);
+      assert.deepEqual(errors, []);
+      await ctx.close();
+    }
+    // Viewer's own time zone is used (India: UTC+5:30 → 10:47 UTC shows as 4:17 pm)
+    const { ctx, page } = await open({ now: `${dayAfter(L.d, 1)}T08:00:00Z`, timezoneId: 'Asia/Kolkata' });
+    assert.match(await page.locator('#nextRefresh').innerText(), /4:17 pm GMT\+5:30/);
     await ctx.close();
   });
 

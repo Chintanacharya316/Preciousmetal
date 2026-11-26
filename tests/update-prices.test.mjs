@@ -198,6 +198,14 @@ describe('main() end-to-end with a mocked network', () => {
     assert.deepEqual(JSON.parse(await readFile(file, 'utf8')).series.map((r) => r.d), ['2026-11-23', '2026-11-25']);
   });
 
+  test('no new prices → file untouched byte-for-byte (no empty commit, "Last refresh" keeps its time)', async () => {
+    const before = serialize([row('2026-11-24'), row('2026-11-25')], new Date('2026-11-25T10:48:00Z'));
+    await writeFile(file, before);
+    globalThis.fetch = async () => json(snap('2026-11-25'));
+    assert.equal(await main([], { dataFile: file, now }), 0);
+    assert.equal(await readFile(file, 'utf8'), before);
+  });
+
   test('re-running on the same day is idempotent', async () => {
     await writeFile(file, serialize([row('2026-11-24')]));
     globalThis.fetch = async () => json(snap('2026-11-25'));

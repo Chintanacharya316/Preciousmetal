@@ -2,9 +2,13 @@ name: Daily prices & deploy
 
 on:
   schedule:
-    # The source publishes each day's snapshot ~06:00–09:30 UTC.
+    # The source publishes each day's snapshot ~06:00–09:30 UTC. GitHub runs schedules
+    # best-effort (often late, occasionally skipped), so there are two retries; a run that
+    # finds nothing new changes nothing. Keep in sync with REFRESH_SLOTS_UTC in assets/app.js
+    # (tests/schedule.test.mjs checks this).
     - cron: "47 10 * * *"   # main daily refresh  (16:17 IST · 05:47 Toronto)
-    - cron: "47 16 * * *"   # safety net for a late publish; a no-op when nothing changed
+    - cron: "47 13 * * *"   # retry
+    - cron: "47 16 * * *"   # retry
   workflow_dispatch:        # "Run workflow" button for a manual refresh
   push:
     branches: [main]

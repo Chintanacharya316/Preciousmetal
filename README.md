@@ -15,8 +15,8 @@ No framework, no build step, no API keys: it's plain HTML, CSS and JS.
 ## How the daily refresh works
 
 ```
-GitHub Actions (10:47 UTC daily, 16:47 UTC backup)
-   └─ node scripts/update-prices.mjs
+GitHub Actions (daily 10:47 UTC, retries 13:47 + 16:47 UTC)
+   └─ node scripts/update-prices.mjs   (writes nothing if no new prices → no empty commits)
         ├─ fetch today's snapshot: XAU, XAG, CAD, INR (all per 1 USD)
         ├─ fill any days missed since the last run (up to 45)
         ├─ sanity checks: plausibility bands + reject >25% daily jumps
