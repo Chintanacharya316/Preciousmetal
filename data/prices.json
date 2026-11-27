@@ -1,4 +1,4 @@
-{"meta":{"name":"Aurum price history","source":"fawazahmed0/exchange-api (daily snapshot, mirrors: jsDelivr · Cloudflare Pages · npm)","units":{"xau":"USD per troy ounce","xag":"USD per troy ounce","cad":"CAD per USD","inr":"INR per USD"},"updatedAt":"2026-11-26T19:49:52.354Z","latest":"2026-11-26","points":401},"series":[{"d":"2025-10-21","xau":4347.37,"xag":51.6525,"cad":1.40385,"inr":87.9289},
+{"meta":{"name":"Aurum price history","source":"fawazahmed0/exchange-api (daily snapshot, mirrors: jsDelivr · Cloudflare Pages · npm)","units":{"xau":"USD per troy ounce","xag":"USD per troy ounce","cad":"CAD per USD","inr":"INR per USD"},"updatedAt":"2026-11-27T19:39:00.664Z","latest":"2026-11-27","points":402},"series":[{"d":"2025-10-21","xau":4347.37,"xag":51.6525,"cad":1.40385,"inr":87.9289},
 {"d":"2025-10-22","xau":4091.32,"xag":48.509,"cad":1.40092,"inr":87.8718},
 {"d":"2025-10-23","xau":4081.29,"xag":48.2858,"cad":1.39939,"inr":87.7945},
 {"d":"2025-10-24","xau":4123.02,"xag":48.5915,"cad":1.39922,"inr":87.8197},
@@ -398,4 +398,5 @@
 {"d":"2026-11-23","xau":3624.02,"xag":42.6761,"cad":1.43175,"inr":92.8066},
 {"d":"2026-11-24","xau":3618.15,"xag":41.9459,"cad":1.43514,"inr":92.8671},
 {"d":"2026-11-25","xau":3525.1,"xag":40.2669,"cad":1.42867,"inr":92.2919},
-{"d":"2026-11-26","xau":3570.57,"xag":41.4795,"cad":1.42192,"inr":92.5094}]}
+{"d":"2026-11-26","xau":3570.57,"xag":41.4795,"cad":1.42192,"inr":92.5094},
+{"d":"2026-11-27","xau":3655.08,"xag":44.0486,"cad":1.42341,"inr":92.8493}]}
